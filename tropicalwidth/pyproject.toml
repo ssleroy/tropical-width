@@ -1,0 +1,33 @@
+[build-system]
+requires = [ "hatchling>=1.22.2" ]
+build-backend = "hatchling.build"
+
+[project]
+name = "tropicalwidth"
+version = "1.0.0"
+authors = [
+	{ name="Stephen Leroy", email="sleroy@aer.com" },
+	]
+description = "Utilities for research on the evolving width of the Tropics"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [ "hatchling", "cdsapi", "earthaccess", "numpy", "matplotlib", "cartopy", 
+	"requests", "global_land_mask", "netCDF4", "tqdm" ]
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"License :: OSI Approved :: BSD License",
+	"Operating System :: OS Independent"
+	]
+
+[project.urls]
+"Homepage" = "https://www.aer-gitlab.com/sleroy/tropical-width"
+"Bug Tracker" = "https://www.aer-gitlab.com/sleroy/tropical-width/-/issues"
+
+[project.scripts]
+download_era5 = "tropicalwidth.download_era5:main"
+download_oscar = "tropicalwidth.download_oscar:main"
+process_ccmp = "tropicalwidth.process_ccmp:main"
+process_cmip6 = "tropicalwidth.process_cmip6:main"
+process_oscar = "tropicalwidth.process_oscar:main"
+process_era5 = "tropicalwidth.process_era5:main"
+
