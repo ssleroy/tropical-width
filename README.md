@@ -9,7 +9,7 @@ Date: 16 June 2025
 
 - You will need a large amount of scratch space for the data downloads, 
   around 900 GB. Be certain to use attached storage if you do not have 
-  sufficient disk space otherwise. The root path for the project data 
+  sufficient disk space. The root path for the project data 
   should be put into the environment variable **DATAROOT** to make the 
   rest of this work go easily. 
 
