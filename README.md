@@ -2,7 +2,7 @@
 
 Author: Stephen Leroy (stephen.leroy@janusresearch.us)
 
-Date: 16 June 2025
+Date: 17 October 2025
 
 
 ## Prerequisites
@@ -11,12 +11,16 @@ Date: 16 June 2025
   around 900 GB. Be certain to use attached storage if you do not have 
   sufficient disk space. The root path for the project data 
   should be put into the environment variable **DATAROOT** to make the 
-  rest of this work go easily. 
-
+  rest of this work go easily.
 ```
 export DATAROOT="/path/to/data"
 ```
-
+- You will need to create a conda environment in which to work to
+  perform all calculations and generate plots.
+```
+conda env create -f config.yaml -y
+conda activate tropical-width
+```
 - You will need an account on the Copernicus Data Store in order to access 
   and download ERA5 data. Once done, create the file .cdsapirc in your home 
   directory and write the url and key values for the CDS API into it. You 
@@ -35,15 +39,7 @@ export DATAROOT="/path/to/data"
   structure the user wishes to use. Just do not change the names of the 
   files. 
 
-- Lastly, install the software by pip. For the sake of a clean install, 
-  it is advised that you start with a clean Python environment. 
-
-```
-pip install ./tropicalwidth
-rehash
-```
-
-##  Computations. 
+##  Computations 
 
 First, a few settings to smooth the analysis from the Linux shell to the 
 jupyter notebook that does the graphical analysis.
@@ -107,11 +103,11 @@ capable of handling the multiple output files produced.
 ## Trends and figures
 
 The linear regression trend analysis and the figures are generated 
-by the jupyter notebook figures.ipynb. This notebook will also 
-produce several data files containing the results of the linear 
-regression analyses. 
+by the python script figures-v2.py. It consists of several functions, 
+some of which perform linear regression analyses, others of which actually 
+generate diagnostic plots and the figures contained in the paper. 
 ```
-jupyter notebook figures.ipynb
+python figures-v2.py
 ```
 
 
