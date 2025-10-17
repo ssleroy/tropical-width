@@ -10,10 +10,8 @@ equatorward and one side and poleward on the other.
 Many useful classes and parameters can be found in _tropicalwidth.libtropicalwidth_, 
 especially the three classes Model, FilePtr, and TimePtr. 
 
-Three executables currently exist: _process\_oscar_, _process\_ccmp_, and 
-_process\_cmip6_. _process\_oscar_ creates monthly climatologies of OSCAR
-surface current vectors downloaded from the PO-DAAC; _process\_ccmp_ 
-computes timeseries of the surface air zonal wind nulls from the CCMP surface 
-air winds data product; and _process\_cmip6_ does the same but for CMIP6 AMIP
-model output. 
+Two executables currently exist: _process_ and _figures_. The former processes 
+(and downloads) CCMP data for the northern and southern edges of the Tropics; 
+the latter generates diagnostics encapsulated postscript figures for use in 
+presentation and publication. 
 

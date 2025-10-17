@@ -21,7 +21,7 @@ import numpy as np
 from netCDF4 import Dataset
 from global_land_mask import globe
 from tqdm import tqdm 
-from .libtropicalwidth import default_dataroot, regions
+from .libtropicalwidth import regions
 
 
 ################################################################################
@@ -183,7 +183,7 @@ def CMIP6tropicalWidth( recs, fill_value=-999e7 ):
 #  Execution. 
 ################################################################################
 
-def process_cmip6( outputfile:str, dataroot:str=default_dataroot, clobber=False, fill_value=-999 ): 
+def process_cmip6( outputfile:str, dataroot:str="/fg", clobber=False, fill_value=-999 ): 
     """Process CMIP6 surface air winds data for tropical width."""
 
     if os.path.isfile( outputfile ): 
@@ -200,20 +200,17 @@ def process_cmip6( outputfile:str, dataroot:str=default_dataroot, clobber=False,
 
     if not run: return
 
+    tmpfile = "tmp.nc"
     print( "Generating " + outputfile )
     sys.stdout.flush()
 
-    outputfile_dir = os.path.dirname( outputfile )
-    if outputfile_dir != "": 
-        os.makedirs( outputfile_dir, exist_ok=True )
-
-    d = Dataset( outputfile, 'w', format='NETCDF4' )
+    d = Dataset( tmpfile, 'w', format='NETCDF4' )
 
     #  Get a listing of all uas (surface air zonal wind) files. Parse the file names. 
 
     allrecs = []
 
-    for root, subdirs, files in os.walk( os.path.join( dataroot, "cmip6" ) ): 
+    for root, subdirs, files in os.walk( "/".join( [dataroot, "cmip6"] ) ): 
         subdirs.sort()
         files.sort()
 
@@ -308,6 +305,15 @@ def process_cmip6( outputfile:str, dataroot:str=default_dataroot, clobber=False,
 
     d.close()
 
+    print( f'Copying {tmpfile} to {outputfile}' )
+    sys.stdout.flush()
+
+    outputfile_dir = os.path.dirname( outputfile )
+    if outputfile_dir != "": 
+        os.makedirs( outputfile_dir, exist_ok=True )
+    shutil.copy( tmpfile, outputfile )
+    os.remove(tmpfile)
+
 
 def main(): 
 
@@ -315,8 +321,8 @@ def main():
 
     parser.add_argument( "output", type=str, help='The name of the NetCDF output file' )
 
-    parser.add_argument( "--dataroot", default=default_dataroot, 
-            help=f'The root path for the data; the default is "{default_dataroot}".' )
+    parser.add_argument( "--dataroot", default="/fg", 
+            help=f'The root path for the data; the default is "/fg".' )
 
     parser.add_argument( "--clobber", "-c", dest='clobber', default=False, action="store_true", 
             help='Clobber previously existing output file; do not clobber by default' )

@@ -14,6 +14,7 @@ import numpy as np
 from netCDF4 import Dataset
 from datetime import datetime, timedelta
 from global_land_mask import globe
+import boto3
 
 
 ################################################################################
@@ -37,14 +38,17 @@ regions = [
 #  Other parameters. 
 ################################################################################
 
+bucket = "aer-sleroy-tropical-width"
+default_dataroot = "/fg"
 fill_value = -999.0
+oscar_tmp = "oscar_tmp.nc"
 
-d = os.getenv( "DATAROOT" )
-if d is not None and d != "": 
-    default_dataroot = d
-else: 
-    default_dataroot = os.path.join( os.path.expanduser("~"), "Data" )
+################################################################################
+#  AWS session, s3 client. 
+################################################################################
 
+session = boto3.Session( region_name="us-east-1" )
+s3 = session.client( "s3" )
 
 ################################################################################
 #  Exception handling. 
@@ -75,7 +79,7 @@ MAXSTOREDTIMES = 8
 
 class Model(): 
 
-    def __init__( self, model='daily', version="v03.1", dataroot="Data", clobberoceanmask=False, oscar=True ):
+    def __init__( self, model='daily', version="v03.1", dataroot="/fg", clobberoceanmask=False, oscar=True ):
         """Define a model class. In this case, the model class refers to the temporal 
         resolution of the data, either 'daily' or 'monthly'."""
 
@@ -399,7 +403,6 @@ class FilePtr():
 
         self.file = modelfile
         self.model, self.version = model.model, model.version
-        self.oceanroot = model.oceanroot
 
         self.p = Dataset( modelfile, 'r' )
         self.times = []
@@ -424,41 +427,52 @@ class FilePtr():
         if model.oscar: 
 
             if model.model=='monthly': 
-                lpath = os.path.join( self.oceanroot, f'{t.year:04d}', f'{t.month:02d}', 
+                s3path = os.path.join( "oscar", f'{t.year:04d}', f'{t.month:02d}', 
                                  f'oscar_currents_{t.year:04d}{t.month:02d}.nc4' )
+                ret = s3.list_objects_v2( Bucket=bucket, Prefix=s3path )
 
-                if os.path.exists( lpath ): 
+                if ret['KeyCount'] == 1: 
+                    s3.download_file( bucket, s3path, oscar_tmp )
                     try: 
-                        o = Dataset( lpath, 'r' )
+                        o = Dataset( oscar_tmp, 'r' )
                     except: 
-                        raise tropicalWidthError( "UnreadableFile", f'Could not read file {lpath}' )
+                        raise tropicalWidthError( "UnreadableFile", f'Could not read file s3://{s3path}' )
                     lons = o.variables['lon'][:]
                     lats = o.variables['lat'][:]
                     u = o.variables['u'][:].T
                     v = o.variables['v'][:].T
                     o.close()
+                    os.unlink( oscar_tmp )
                     found = True
                 else: 
-                    print( f'No OSCAR surface currents for {t.year:04d}-{t.month:02d}, path={lpath}' )
+                    print( f'No OSCAR surface currents for {t.year:04d}-{t.month:02d}, s3path={s3path}' )
                     sys.stdout.flush()
                     found = False
 
             elif model.model=='daily': 
-                ldir = os.path.join( self.oceanroot, f'{t.year:04d}', f'{t.month:02d}' )
-                ss = f'oscar_currents_[a-z]+_{t.year:04d}{t.month:02d}{t.day:02d}.*nc4$'
-                files = [ f for f in os.listdir(ldir) if re.search( ss, f ) ]
+                prefix = os.path.join( "oscar", f'{t.year:04d}', f'{t.month:02d}', 
+                                 f'oscar_currents_' )
+                ret = s3.list_objects_v2( Bucket=bucket, Prefix=prefix )
 
-                if len( files ) == 1: 
-                    lpath = os.path.join( ldir, files[0] )
+                if ret['KeyCount'] > 0: 
+                    ss = f'oscar_currents_[a-z]+_{t.year:04d}{t.month:02d}{t.day:02d}\w*\.nc'
+                    keys = [ obj['Key'] for obj in ret['Contents'] if re.search( ss, obj['Key'] ) ]
+                else: 
+                    keys = []
+
+                if len( keys ) == 1: 
+                    s3path = keys[0]
+                    s3.download_file( bucket, s3path, oscar_tmp )
                     try: 
-                        o = Dataset( lpath, 'r' )
+                        o = Dataset( oscar_tmp, 'r' )
                     except: 
-                        raise tropicalWidthError( "UnreadableFile", f'Could not read file {lpath}' )
+                        raise tropicalWidthError( "UnreadableFile", f'Could not read file s3://{s3path}' )
                     lons = o.variables['lon'][:]
                     lats = o.variables['lat'][:]
                     u = o.variables['u'][:].squeeze().T
                     v = o.variables['v'][:].squeeze().T
                     o.close()
+                    os.unlink( oscar_tmp )
                     found = True
                 else: 
                     print( f'No OSCAR surface currents for {t.year:04d}-{t.month:02d}-{t.day:02d}' )

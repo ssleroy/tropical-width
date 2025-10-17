@@ -6,7 +6,10 @@ from datetime import datetime, timedelta
 from netCDF4 import Dataset
 import numpy as np
 import boto3
-from .libtropicalwidth import default_dataroot
+from tropicalwidth.libtropicalwidth import bucket
+
+session = boto3.Session( region_name="us-east-1" )
+s3 = session.client( "s3" )
 
 
 #  Exception handling. 
@@ -20,7 +23,7 @@ class ProcessOSCARError( Error ):
         self.comment = comment
 
 
-def compute_oscar_climatology( dataroot=default_dataroot, clobber=False ): 
+def compute_oscar_climatology( dataroot="/fg", clobber=False ): 
     """Create climatologies of monthly average ocean surface currents from OSCAR data. 
     The data will be found in dataroot/oscar/YYYY/MM, where years YYYY and months MM will 
     be scanned for daily data files downloaded from the NASA PO-DAAC. If all days for the 
@@ -49,22 +52,27 @@ def compute_oscar_climatology( dataroot=default_dataroot, clobber=False ):
         dt2 = datetime( year=dt2.year, month=dt2.month, day=1 )
         ndays = ( dt2 - dt ).days
 
-        ldir = os.path.join( dataroot, "oscar", f'{dt.year:4d}', f'{dt.month:02d}' )
-        if not os.path.isdir( ldir ): 
-            dt = dt2
-            continue
-        lpaths = [ os.path.join( ldir, f ) for f in os.listdir( ldir ) \
-                if re.search( r'oscar_currents_[a-z]+_\d{8}.*\.nc', f ) ]
+        prefix = 'oscar/{:4d}/{:02d}/'.format( dt.year, dt.month ) 
+        ret = s3.list_objects_v2( Bucket=bucket, Prefix=prefix ) 
 
-        if len(lpaths) != ndays: 
-            print( 'Month {:} has only {:} files'.format( dt.strftime("%Y-%m"), len(lpaths) ) )
+        if ret['KeyCount'] < 28: 
+            print( 'Month {:} only has {:} files'.format( dt.strftime("%m/%Y"), ret['KeyCount'] ) )
             sys.stdout.flush()
             dt = dt2
             continue
 
-        opath = os.path.join( ldir, 'oscar_currents_{:}.nc4'.format( dt.strftime( "%Y%m" ) ) )
+        keys = [ obj['Key'] for obj in ret['Contents'] ]
+        dkeys = [ key for key in keys if re.search( r'oscar_currents_[a-z]+_\d{8}\w*\.nc', key ) ]
 
-        if os.path.exists( opath ): 
+        if len(dkeys) != ndays: 
+            print( 'Month {:} only has {:} files'.format( dt.strftime("%m/%Y"), len(dfiles) ) )
+            sys.stdout.flush()
+            dt = dt2
+            continue
+
+        opath = prefix + 'oscar_currents_{:}.nc4'.format( dt.strftime( "%Y%m" ) )
+
+        if opath in keys: 
             if clobber: 
                 print( f'{opath} already exists; clobber' )
                 sys.stdout.flush()
@@ -74,14 +82,15 @@ def compute_oscar_climatology( dataroot=default_dataroot, clobber=False ):
                 dt = dt2
                 continue
 
-        for ilpath, lpath in enumerate( lpaths ): 
+        for idkey, dkey in enumerate( dkeys ): 
 
+            s3.download_file( bucket, dkey, tmpfile )
             try: 
-                d = Dataset( lpath, 'r' )
+                d = Dataset( tmpfile, 'r' )
             except: 
-                raise ProcessOSCARError( "UnreadableFile", f'Unreadable file: {lpath}' )
+                raise ProcessOSCARError( "UnreadableFile", f'Unreadable file: {dkey}' )
 
-            if ilpath == 0: 
+            if idkey == 0: 
 
                 #  Get metadata. 
 
@@ -99,7 +108,7 @@ def compute_oscar_climatology( dataroot=default_dataroot, clobber=False ):
 
             #  Accumulate u, v field for surface current. 
 
-            if ilpath == 0: 
+            if idkey == 0: 
                 uc = d.variables['u'][:].squeeze()
                 vc = d.variables['v'][:].squeeze()
             else: 
@@ -107,6 +116,7 @@ def compute_oscar_climatology( dataroot=default_dataroot, clobber=False ):
                 vc += d.variables['v'][:].squeeze()
 
             d.close()
+            os.unlink( tmpfile )
 
         #  Compute monthly average. 
 
@@ -118,7 +128,7 @@ def compute_oscar_climatology( dataroot=default_dataroot, clobber=False ):
         print( f'Creating {opath}' )
         sys.stdout.flush()
 
-        d = Dataset( opath, 'w', format="NETCDF4" )
+        d = Dataset( tmpfile, 'w', format="NETCDF4" )
 
         #  Create dimensions. 
 
@@ -156,6 +166,8 @@ def compute_oscar_climatology( dataroot=default_dataroot, clobber=False ):
         d.variables['v'][:] = vc
 
         d.close()
+        s3.upload_file( tmpfile, bucket, opath )
+        os.unlink( tmpfile )
 
         dt = dt2
 
@@ -166,6 +178,8 @@ def main():
 
     #  Defaults. 
 
+    default_dataroot = "/fg"
+
     parser = argparse.ArgumentParser( prog='process_oscar', description=
             """Create climatologies of monthly average ocean surface currents from OSCAR data. 
             The data will be found in dataroot/oscar/YYYY/MM, where years YYYY and months MM will 
@@ -173,7 +187,7 @@ def main():
             month are found in the directory, then the daily data will be averaged into one monthly 
             file for that YYYY/MM.""" )
 
-    parser.add_argument( '--dataroot', default=default_dataroot, 
+    parser.add_argument( '--dataroot', '-d', dest="dataroot", default=default_dataroot, 
             help=f'The root data directory; "{default_dataroot}" by default' )
     parser.add_argument( '--clobber', default=False, action='store_true', 
             help='Clobber previously computed climatology; default is to skip when output file already exists' )
