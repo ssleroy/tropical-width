@@ -21,6 +21,7 @@ import numpy as np
 from netCDF4 import Dataset
 from global_land_mask import globe
 from tqdm import tqdm 
+import intake_esgf
 from .libtropicalwidth import regions
 
 
@@ -42,7 +43,7 @@ class CMIP6TropicalWidthProcessError(Error):
 #  Calculate tropical width. 
 ################################################################################
 
-def CMIP6tropicalWidth( recs, fill_value=-999e7 ): 
+def CMIP6tropicalWidth( mcat, fill_value=-999e7 ): 
 
     ret = { 'status': "success", 'messages': [], 'comments': [] }
 
@@ -52,124 +53,90 @@ def CMIP6tropicalWidth( recs, fill_value=-999e7 ):
     out = [ { 'region': region['name'], 'lats': [] } for region in regions ]
     times = []
 
-    for irec, rec in enumerate( recs ): 
+    #  Longitude-latitude grid and ocean mask. 
 
-        try: 
-            print( f'  Opening {rec["path"]}' )
-            sys.stdout.flush()
-            d = Dataset( rec['path'], 'r' )
-        except: 
-            ret['status'] = "fail"
-            ret['messages'].append( "UnreadableFile" )
-            ret['comments'].append( f"Could not open file {rec['path']}" )
-            return ret 
+    m = mcat['uas'].uas.loc[ "1985-01-01":"2024-12-31" ]
+    lats = np.array( m.lat )
+    lons = np.array( m.lon )
+    lons[ lons >= 180.0 ] -= 360.0
 
-        #  Check input file. 
+    #  Create ocean mask. 
 
-        varnames = list( d.variables.keys() )
-        for v in [ 'lon', 'lat', 'uas' ]: 
-            if v not in varnames: 
-                ret['status'] = "fail"
-                ret['messages'].append( 'InvalidFile' )
-                ret['comments'].append( f'Could not find variable "{v}" in file {rec["path"]}' )
-                d.close()
-                return ret
-
-        #  Longitude-latitude grid and ocean mask. 
-
-        if irec == 0: 
-
-            # print( '    Creating region masks' )
-            # sys.stdout.flush()
-
-            lats = d.variables['lat'][:]
-            x = np.deg2rad( d.variables['lon'][:] )
-            lons = np.rad2deg( np.arctan2( np.sin(x), np.cos(x) ) )
-
-            #  Create ocean mask. 
-
-            oceanmask = np.zeros( (lats.size,lons.size), dtype='b' )
-            for ilat, lat in enumerate(lats): 
-                for ilon, lon in enumerate(lons): 
-                    oceanmask[ilat,ilon] = globe.is_ocean( lat, lon )
+    oceanmask = np.zeros( (lats.size,lons.size), dtype='b' )
+    for ilat, lat in enumerate(lats): 
+        for ilon, lon in enumerate(lons): 
+            oceanmask[ilat,ilon] = globe.is_ocean( lat, lon )
 
 
-            #  Define region masks. 
+    #  Define region masks. 
 
-            lats2 = lats[ np.indices( ( lats.size, lons.size ) )[0,:,:] ]
-            lons2 = lons[ np.indices( ( lats.size, lons.size ) )[1,:,:] ]
-            regionmasks = np.zeros( (len(regions),lats.size,lons.size), dtype='b' )
+    lats2 = lats[ np.indices( ( lats.size, lons.size ) )[0,:,:] ]
+    lons2 = lons[ np.indices( ( lats.size, lons.size ) )[1,:,:] ]
+    regionmasks = np.zeros( (len(regions),lats.size,lons.size), dtype='b' )
 
-            for iregion, region in enumerate( regions ): 
+    for iregion, region in enumerate( regions ): 
 
-                #  Mask by latitude (always).
+        #  Mask by latitude (always).
 
-                regionmask = np.logical_and( region['latbounds'][0] < lats2, lats2 < region['latbounds'][1] )
+        regionmask = np.logical_and( region['latbounds'][0] < lats2, lats2 < region['latbounds'][1] )
 
-                #  Mask by longitude. 
+        #  Mask by longitude. 
 
-                if 'lonbounds' in region.keys(): 
-                    dlons2 = np.deg2rad( lons2 - region['lonbounds'][0] ) 
-                    dlons2 = np.arctan2( -np.sin(dlons2), -np.cos(dlons2) ) + np.pi
-                    dlon = np.rad2deg( region['lonbounds'][1] - region['lonbounds'][0] ) 
-                    dlon = np.arctan2( -np.sin(dlon), -np.cos(dlon) ) + np.pi
-                    regionmask = np.logical_and( regionmask, dlons2 <= dlon )
+        if 'lonbounds' in region.keys(): 
+            dlons2 = lons2 - region['lonbounds'][0] 
+            dlons2[ dlons2 < 0.0 ] += 360.0
+            dlons2[ dlons2 >= 360.0 ] -= 360.0
 
-                #  Ocean only? 
+            dlon = np.rad2deg( region['lonbounds'][1] - region['lonbounds'][0] ) 
+            if dlon >= 360.0: 
+                dlon -= 360.0
+            elif dlon < 0.0: 
+                dlon += 360.0
 
-                if region['oceanmask']: 
-                    regionmask = np.logical_and( regionmask, oceanmask )
+            regionmask = np.logical_and( regionmask, dlons2 <= dlon )
 
-                regionmasks[iregion,:,:] = regionmask
+        #  Ocean only? 
 
-        #  Define times in the file. 
+        if region['oceanmask']: 
+            regionmask = np.logical_and( regionmask, oceanmask )
 
-        year_min, mo_min = int(rec['monthrange'][:4]), int(rec['monthrange'][4:6])
-        year_max, mo_max = int(rec['monthrange'][7:11]), int(rec['monthrange'][11:])
-        rectimes = np.arange(year_min + (mo_min-0.5) * month_multiplier, 
-                                year_max + mo_max * month_multiplier,
-                                month_multiplier)
+        regionmasks[iregion,:,:] = regionmask
 
-        #  Loop over times in the file. 
+    #  Define times in the file. 
 
-        # iterator = tqdm( enumerate(rectimes), desc="    Time" )
-        iterator = enumerate(rectimes)
+    rectimes = ( np.array( m.time ).astype("datetime64[M]").astype("int") + 0.5 ) / 12 + 1970
 
-        for irectime, rectime in iterator: 
+    #  Loop over times in the stream. 
 
-            if rectime in times: 
-                continue
+    # iterator = tqdm( enumerate(rectimes), desc="    Time" )
+    iterator = enumerate(rectimes)
 
-            times.append( rectime )
-            u = d.variables['uas'][irectime,:,:]
+    for irectime, rectime in iterator: 
 
-            for iregion, region in enumerate(regions): 
+        u = np.array( m[irectime,:,:] )
 
-                za = np.ma.masked_where( np.logical_not(regionmasks[iregion,:,:]), u.data ).mean( axis=1 )
+        for iregion, region in enumerate(regions): 
 
-                #  Find where zonal average is negative or 0. 
+            za = np.ma.masked_where( np.logical_not(regionmasks[iregion,:,:]), u.data ).mean( axis=1 )
 
-                za_indices = np.argwhere( za[:-1] * za[1:] <= 0 )
+            #  Find where zonal average is negative or 0. 
 
-                if za_indices.size == 0:
-                    lat = fill_value
-                else:
-                    # Linear interpolation to estimate null in longitude-average zonal wind. 
-                    idx = za_indices[0,0]
-                    slope = za[idx] / ( za[idx] - za[idx+1] )
-                    # TODO: I'm not clear how this finds the null. 
-                    lat = lats[idx]*(1-slope) + lats[idx+1]*(slope)
+            za_indices = np.argwhere( za[:-1] * za[1:] <= 0 )
 
-                out[iregion]['lats'].append( lat )
+            if za_indices.size == 0:
+                lat = fill_value
+            else:
+                # Linear interpolation to estimate null in longitude-average zonal wind. 
+                idx = za_indices[0,0]
+                slope = za[idx] / ( za[idx] - za[idx+1] )
+                lat = lats[idx]*(1-slope) + lats[idx+1]*(slope)
 
-        #  Next record/file. 
+            out[iregion]['lats'].append( lat )
 
-        d.close()
-
-    #  Convert times and lats to ndarray and masked array. 
+    #  Convert lats to masked array. 
 
     if ret['status'] == "success": 
-        times = np.array( times )
+        times = rectimes
         for outrec in out: 
             x = np.array( outrec['lats'] )
             outrec['lats'] = np.ma.masked_where( x==fill_value, x )
@@ -183,7 +150,7 @@ def CMIP6tropicalWidth( recs, fill_value=-999e7 ):
 #  Execution. 
 ################################################################################
 
-def process_cmip6( outputfile:str, dataroot:str="/fg", clobber=False, fill_value=-999 ): 
+def process_cmip6( outputfile:str, clobber=False, fill_value=-999 ): 
     """Process CMIP6 surface air winds data for tropical width."""
 
     if os.path.isfile( outputfile ): 
@@ -200,6 +167,15 @@ def process_cmip6( outputfile:str, dataroot:str="/fg", clobber=False, fill_value
 
     if not run: return
 
+    #  Get catalogue of AMIP uas files, list of models. 
+
+    scenario = { 'experiment_id': "amip", 'table_id': "Amon", 'variable_id': ["uas"], 'member_id': "r1i1p1f1" }
+    cat = intake_esgf.ESGFCatalog()
+    q = cat.search( **scenario )
+    models = sorted( list( q.df.source_id ) )
+
+    #  Create output file. 
+
     tmpfile = "tmp.nc"
     print( "Generating " + outputfile )
     sys.stdout.flush()
@@ -208,38 +184,15 @@ def process_cmip6( outputfile:str, dataroot:str="/fg", clobber=False, fill_value
 
     #  Get a listing of all uas (surface air zonal wind) files. Parse the file names. 
 
-    allrecs = []
-
-    for root, subdirs, files in os.walk( "/".join( [dataroot, "cmip6"] ) ): 
-        subdirs.sort()
-        files.sort()
-
-        for file in files: 
-            # Check that file has correct format (is a uas file).
-            m = re.search( r'^uas_(\w+)_(\S+)_(\w+)_(\w+)_(\w+)_(\d{6}-\d{6})\.nc$', file )
-            if m: 
-                rec = { 
-                       'path': "/".join([root, file ]), 
-                       'key': "_".join( [ m.group(1), m.group(2), m.group(3), m.group(4) ] ), 
-                       'frequency': m.group(1), 
-                       'model': m.group(2), 
-                       'scenario': m.group(3), 
-                       'realization': m.group(4), 
-                       'grid': m.group(5), 
-                       'monthrange': m.group(6)
-                    }
-                allrecs.append( rec )
-
-    keys = sorted( list( { rec['key'] for rec in allrecs } ) )
     first_entry = True
 
-    for ikey, key in enumerate(keys): 
+    for imodel, model in enumerate( models ): 
 
-        print( f'Computations for analysis key "{key}"' )
+        print( f'Computations for model "{model}"' )
         sys.stdout.flush()
 
-        recs = [ rec for rec in allrecs if rec['key']==key ]
-        ret = CMIP6tropicalWidth( recs, fill_value=fill_value )
+        mm = cat.search( **scenario, source_id=model ).to_dataset_dict( prefer_streaming=True, add_measures=False )
+        ret = CMIP6tropicalWidth( mm, fill_value=fill_value )
 
         if ret['status'] != "success": 
             print( "; ".join( ret['comments'] ) )
@@ -266,15 +219,15 @@ def process_cmip6( outputfile:str, dataroot:str="/fg", clobber=False, fill_value
 
         #  Data for each key goes in a group. 
 
-        g = d.createGroup( key )
+        g = d.createGroup( model )
 
         #  Group attributes identifying CMIP6 run. 
 
         g.setncatts( { 
-                'model': recs[0]['model'], 
-                'frequency': recs[0]['frequency'], 
-                'scenario': recs[0]['scenario'], 
-                'realization': recs[0]['realization']
+                'model': model, 
+                'frequency': scenario['table_id'], 
+                'scenario': scenario['experiment_id'], 
+                'realization': scenario['member_id']
             } )
 
         #  Group time dimension. 
@@ -317,12 +270,9 @@ def process_cmip6( outputfile:str, dataroot:str="/fg", clobber=False, fill_value
 
 def main(): 
 
-    parser = argparse.ArgumentParser( prog="""Process tropical width data from CCMP""" )
+    parser = argparse.ArgumentParser( prog="""Process tropical width data from CMIP6""" )
 
     parser.add_argument( "output", type=str, help='The name of the NetCDF output file' )
-
-    parser.add_argument( "--dataroot", default="/fg", 
-            help=f'The root path for the data; the default is "/fg".' )
 
     parser.add_argument( "--clobber", "-c", dest='clobber', default=False, action="store_true", 
             help='Clobber previously existing output file; do not clobber by default' )
@@ -331,7 +281,7 @@ def main():
 
     t0 = time()
 
-    process_cmip6( args.output, dataroot=args.dataroot, clobber=args.clobber, fill_value=-999 )
+    process_cmip6( args.output, clobber=args.clobber, fill_value=-999 )
 
     t1 = time()
     dt = t1 - t0

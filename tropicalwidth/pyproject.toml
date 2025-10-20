@@ -4,15 +4,17 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tropicalwidth"
-version = "1.0.0"
+version = "1.1.0"
 authors = [
-	{ name="Stephen Leroy", email="sleroy@aer.com" },
+	{ name="Stephen Leroy", email="stephen.leroy@janusresearch.us" },
 	]
 description = "Utilities for research on the evolving width of the Tropics"
 readme = "README.md"
-requires-python = ">=3.8"
-dependencies = [ "hatchling", "boto3", "numpy", "matplotlib", "cartopy", 
+requires-python = ">=3.11"
+dependencies = [ "hatchling", "boto3", "numpy", 
+	"globus-sdk==3.60.0", "intake-esgf==2025.6.6", "xarray==2025.7.1", 
 	"requests", "global_land_mask", "netCDF4", "tqdm" ]
+
 classifiers = [
 	"Programming Language :: Python :: 3",
 	"License :: OSI Approved :: BSD License",
