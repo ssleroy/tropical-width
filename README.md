@@ -2,7 +2,7 @@
 
 Author: Stephen Leroy (stephen.leroy@janusresearch.us)
 
-Date: 17 October 2025
+Date: 20 October 2025
 
 
 ## Prerequisites
@@ -87,7 +87,7 @@ do
   process_ccmp "$(year)-01:$(year)-12" $DATAROOT/output/tropicalwidth.$(year).nc
 done
 ```
-The research at Janus/AER was done in a cloud-computing environment, 
+The research at Atmospheric and Environmental Research was done in a cloud-computing environment, 
 specifically with the Amazon Web Services (AWS) Batch service. A very 
 similar approach can be taken with SLURM or PBL/Torque on a 
 high-performance Linux cluster. The jupyter notebook below is very 
