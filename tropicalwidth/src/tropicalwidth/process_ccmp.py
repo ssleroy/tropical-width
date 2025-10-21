@@ -12,12 +12,12 @@
 import os
 import re
 import sys
-import shutil
 from time import time
 import requests
 from datetime import datetime, timedelta
 import argparse 
 import numpy as np
+import boto3
 from netCDF4 import Dataset
 from .libtropicalwidth import Model, FilePtr, TimePtr, default_dataroot, \
         tropicalWidth, averageWind
@@ -40,7 +40,7 @@ class TropicalWidthProcessError(Error):
 #  Execution. 
 ################################################################################
 
-def process_ccmp( timerange:{tuple,list}, outputfile:str, dataroot:str=default_dataroot, clobber=False ): 
+def process( timerange:{tuple,list}, outputfile:str, dataroot:str="/fg", clobber=False ): 
     """Process CCMP data, looking for the u=0 latitude in both hemispheres under four
     scenarios: all CCMP, ocean-only CCMP, data-constrained CCMP, ocean-only and data-
     constrained CCMP. The output is written to a NetCDF file."""
@@ -69,7 +69,7 @@ def process_ccmp( timerange:{tuple,list}, outputfile:str, dataroot:str=default_d
     print( "Generating " + outputfile )
     sys.stdout.flush()
 
-    d = Dataset( tmpfile, 'w', format='NETCDF3_CLASSIC' )
+    d = Dataset( tmpfile, 'w', format='NETCDF4_CLASSIC' )
 
     methods = { 'All':{'description':'All wind data in CCMP used'}, \
       'Dataonly':{'description':'Only the wind data constrained by at least one data point are used'} }
@@ -138,20 +138,28 @@ def process_ccmp( timerange:{tuple,list}, outputfile:str, dataroot:str=default_d
     print( f'Copying {tmpfile} to {outputfile}' )
     sys.stdout.flush()
 
-    outputfile_dir = os.path.dirname( outputfile )
-    if outputfile_dir != "": 
-        os.makedirs( outputfile_dir, exist_ok=True )
-    shutil.copy( tmpfile, outputfile )
+    if outputfile[:5] == "s3://": 
+        s3 = boto3.client( "s3", region_name="us-east-1" )
+        ss = outputfile[5:].split( "/" )
+        s3.upload_file( tmpfile, ss[0], "/".join(ss[1:]) )
+    else: 
+        outputfile_dir = os.path.dirname( outputfile )
+        if outputfile_dir != "": 
+            os.makedirs( outputfile_dir, exist_ok=True )
+        if os.path.exists( outputfile ): 
+            os.unlink( outputfile )
+        shutil.copy( tmpfile, outputfile )
 
 
 def main(): 
 
-    parser = argparse.ArgumentParser( prog="""Process tropical width data from CCMP""" )
+    parser = argparse.ArgumentParser( prog="process_ccmp", description="""Process tropical width data from CCMP""" )
 
     parser.add_argument( "monthrange", type=str, help="""The range of months (inclusive) over which to process 
             CCMP tropical widths, format "YYYY-MM:YYYY-MM" for the begin and end months""" )
 
-    parser.add_argument( "output", type=str, help='The name of the NetCDF output file' )
+    parser.add_argument( "output", type=str, help='The name of the NetCDF output file; the path can optionally ' + \
+            'connect to an S3 bucket with the prefix "s3://"' )
 
     parser.add_argument( "--dataroot", default=default_dataroot, 
             help=f'The root path for the data; the default is "{default_dataroot}".' )
@@ -173,7 +181,7 @@ def main():
 
     t0 = time()
 
-    process_ccmp( timerange, args.output, dataroot=args.dataroot, clobber=args.clobber )
+    process( timerange, args.output, dataroot=args.dataroot, clobber=args.clobber )
 
     t1 = time()
     dt = t1 - t0

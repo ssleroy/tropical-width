@@ -1,16 +1,17 @@
 import os
-import re
-import argparse
 from netCDF4 import Dataset
 from datetime import datetime, timedelta 
 import numpy as np
+import cartopy
+from cartopy.util import add_cyclic_point
+import matplotlib.pyplot as plt
+import matplotlib
 from .libtropicalwidth import default_dataroot
-
 
 #  Physical parameters. 
 
-gravity = 9.80665           # J / kg / meter
-Re = 6378.0e3               # m
+gravity = 9.80665
+Re = 6378.0e3
 rads = np.pi / 180
 fill_value = -1.22e20
 
@@ -19,33 +20,9 @@ fill_value = -1.22e20
 reference_time = datetime( year=1980, month=1, day=1 )
 
 
-def process_era5( yearrange, outputfile, dataroot=default_dataroot, clobber=False, 
-                 streamfunction_plevel=500 ): 
-    """Compute width of the Tropics according to the nulls in the mean meridional 
-    streamfunction at 500 hPa. 
+def process( t0, t1, outputfile, dataroot=default_dataroot ): 
 
-    yearrange           A two-tuple, two-element list, or 2-element ndarray of 
-                        the year range over which to compute tropical width; the 
-                        range is inclusive
-
-    outputfile          The path to the output NetCDF file
-
-    dataroot            The root directory for all data associated with the 
-                        tropical width project
-
-    clobber             Whether or not to clobber previously existing output 
-                        file"""
-
-
-    if os.path.exists( outputfile ): 
-        if clobber: 
-            print( f'{outputfile} already exists; clobbering' )
-            os.unlink( outputfile )
-        else: 
-            print( f'{outputfile} already exists; skipping' )
-            return
-
-    print( f'Generating {outputfile}' )
+    print( "Generating " + outputfile )
 
     o = Dataset( outputfile, 'w', format='NETCDF4' )
 
@@ -86,17 +63,18 @@ def process_era5( yearrange, outputfile, dataroot=default_dataroot, clobber=Fals
         } )
 
 
+    firsttime = True
     itime = 0
 
     #  Loop over year. 
 
-    for year in range( yearrange[0], yearrange[1]+1 ): 
+    for year in range( t0.year, t1.year ): 
 
         era5_input_file = os.path.join( dataroot, "era5", 'vwnd.plevels.monthly.{:4d}.nc'.format(year) )
-        print( f'Opening {era5_input_file}' )
+        print( "Opening " + era5_input_file )
         d = Dataset( era5_input_file, 'r' )
 
-        if year == yearrange[0]: 
+        if firsttime: 
 
             #  Get coordinates. 
 
@@ -104,7 +82,7 @@ def process_era5( yearrange, outputfile, dataroot=default_dataroot, clobber=Fals
             lats = d.variables['latitude'][:]
             levels = d.variables['level'][:]
             nlons, nlats, nlevels = lons.size, lats.size, levels.size
-            ip = list(levels).index(streamfunction_plevel)
+            ip = list(levels).index(500)
 
             w = np.zeros(nlevels)
             if levels[1] > levels[0]: 
@@ -115,6 +93,8 @@ def process_era5( yearrange, outputfile, dataroot=default_dataroot, clobber=Fals
                 w[-1] = ( levels[-1] + levels[-2] ) * 0.5
                 w[ip+1:-1] = ( levels[ip:-2] - levels[ip+2:] ) * 0.5
                 w[ip] = ( levels[ip] - levels[ip+1] ) * 0.5
+
+            firsttime = False
 
         for imonth in range(12): 
 
@@ -166,37 +146,34 @@ def process_era5( yearrange, outputfile, dataroot=default_dataroot, clobber=Fals
     #  Done. 
 
     o.close()
-    print( f'Successfully created {outputfile}' )
-
     return
 
 
 def main(): 
 
-    parser = argparse.ArgumentParser( description="Process ERA5 for the width of the Tropics according to the mean meridional streamfunction." )
+    parser = argparse.ArgumentParser( prog="process_era5", description='Compute the width of the ' + \
+            'tropics according to the streamfunction definition from ERA5 meridional winds' )
 
-    parser.add_argument( 'yearrange', type=str, help='Range of years over which to compute the width of the Tropics as ' + \
-            '"YYYY:YYYY"; the range is inclusive' )
+    parser.add_argument( "yearrange", type=str, help='Range of years over which to ' + \ 
+            'download ERA5 data, format "YYYY:YYYY", inclusive' )
 
-    parser.add_argument( 'outputfile', type=str, help='Path of the output NetCDF file' )
+    parser.add_argument( "output", type=str, help='Path to the output file' )
 
-    parser.add_argument( '--clobber', '-c', dest="clobber", default=False, action="store_true", 
-            help="Clobber pre-existing output file; default is not to clobber" )
+    parser.add_argument( "--dataroot", "-d", dest="dataroot", default=default_dataroot, 
+            help="Root of all data for the tropical width analysis project; " + \ 
+                f'the default is "{default_dataroot}"' )
 
     args = parser.parse_args()
 
     m = re.search( r'^(\d{4}):(\d{4})$', args.yearrange )
-    if not m: 
-        print( f'The yearrange must have format "YYYY:YYYY".' )
-        return
-    yearrange = ( int( m.group(1) ), int( m.group(2) ) )
+    if not m:  
+        print( 'Be sure that the yearrange has the format "YYYY:YYYY".' )
+        exit()
 
-    ret = process_era5( yearrange, args.outputfile, clobber=args.clobber )
+    year0, year1 = int( m.group(1) ), int( m.group(2) )
+    t0 = datetime( year=year0, month=1, day=1 )
+    t1 = datetime( year=year1, month=12, day=31 )
 
-    return
-
-
-if __name__ == "__main__": 
-    main()
-    pass
+    if not os.path.exists( era5file ): 
+        process( t0, t1, args.outputfile, dataroot=dataroot )
 

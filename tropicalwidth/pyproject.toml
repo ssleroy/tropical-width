@@ -26,8 +26,10 @@ classifiers = [
 "Bug Tracker" = "https://www.aer-gitlab.com/sleroy/tropical-width/-/issues"
 
 [project.scripts]
-process = "tropicalwidth.process:main"
+download_era5 = "tropicalwidth.download_era5:main"
+download_oscar = "tropicalwidth.download_oscar:main"
+process_ccmp = "tropicalwidth.process_ccmp:main"
 process_cmip6 = "tropicalwidth.process_cmip6:main"
 process_oscar = "tropicalwidth.process_oscar:main"
-figures = "tropicalwidth.figures:main"
+process_era5 = "tropicalwidth.process_era5:main"
 
