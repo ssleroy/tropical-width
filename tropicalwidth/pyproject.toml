@@ -13,7 +13,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [ "hatchling", "boto3", "numpy", 
 	"globus-sdk==3.60.0", "intake-esgf==2025.6.6", "xarray==2025.7.1", 
-	"requests", "global_land_mask", "netCDF4", "tqdm" ]
+	"requests", "cdsapi", "global_land_mask", "netCDF4", "tqdm" ]
 
 classifiers = [
 	"Programming Language :: Python :: 3",

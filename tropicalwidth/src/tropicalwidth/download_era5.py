@@ -171,8 +171,7 @@ def transform( cdsfile, outputfile ):
                 ovals = np.flip( vdata_input[:,:,:,ilons], axis=1 )
             else: 
                 ovals = vdata_input[:,:,:,ilons]
-
-    vdata_output[:] = ovals 
+        vdata_output[:] = ovals 
 
     #  Done. 
 
@@ -205,6 +204,7 @@ def download_v( year, dataroot=default_dataroot, clobber=False ):
     head, tail = os.path.split( localfile )
     if head != "": 
         os.makedirs( head, exist_ok=True )
+    print( f'Downloading {tail}' )
 
     #  Define the download definition dictionary. 
 
@@ -273,6 +273,7 @@ def download_ps( year, dataroot=default_dataroot, clobber=False ):
     head, tail = os.path.split( localfile )
     if head != "": 
         os.makedirs( head, exist_ok=True )
+    print( f'Downloading {tail}' )
 
     #  Define the download definition dictionary. 
 
@@ -328,6 +329,7 @@ def download_us( year, dataroot=default_dataroot, clobber=False ):
     head, tail = os.path.split( localfile )
     if head != "": 
         os.makedirs( head, exist_ok=True )
+    print( f'Downloading {tail}' )
 
     #  Define the download definition dictionary. 
 
