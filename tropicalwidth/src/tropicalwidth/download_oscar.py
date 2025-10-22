@@ -97,8 +97,9 @@ def main():
             'download OSCAR ocean surface current data; the format should be ' + \
             '"YYYY-MM:YYYY-MM", and the range is inclusive' )
 
-    parser.add_argument( "--dataroot", "-d", default=default_dataroot, help='The root directory ' + \
-            f'for all data related to the tropical width project; the default is "{default_dataroot}"' )
+    parser.add_argument( "--dataroot", "-d", dest="dataroot", default=default_dataroot,
+            help="Root of all data for the tropical width analysis project; " + \
+                f'the default is "{default_dataroot}"' )
 
     args = parser.parse_args()
 

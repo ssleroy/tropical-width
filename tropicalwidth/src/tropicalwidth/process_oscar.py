@@ -187,8 +187,10 @@ def main():
             month are found in the directory, then the daily data will be averaged into one monthly 
             file for that YYYY/MM.""" )
 
-    parser.add_argument( '--dataroot', '-d', dest="dataroot", default=default_dataroot, 
-            help=f'The root data directory; "{default_dataroot}" by default' )
+    parser.add_argument( "--dataroot", "-d", dest="dataroot", default=default_dataroot,
+            help="Root of all data for the tropical width analysis project; " + \
+                f'the default is "{default_dataroot}"' )
+
     parser.add_argument( '--clobber', default=False, action='store_true', 
             help='Clobber previously computed climatology; default is to skip when output file already exists' )
 

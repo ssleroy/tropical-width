@@ -1,4 +1,4 @@
-#  process.py executable
+#  process_ccmp.py executable
 #  Version: 1.1
 #  Date: March 18, 2025
 #  Author: Stephen Leroy (sleroy@aer.com)

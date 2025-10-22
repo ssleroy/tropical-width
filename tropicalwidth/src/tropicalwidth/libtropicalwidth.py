@@ -39,9 +39,12 @@ regions = [
 ################################################################################
 
 bucket = "aer-sleroy-tropical-width"
-default_dataroot = "/fg"
 fill_value = -999.0
 oscar_tmp = "oscar_tmp.nc"
+
+default_dataroot = os.getenv( "DATAROOT" )
+if default_dataroot is None: 
+    default_dataroot = "/fg"
 
 ################################################################################
 #  AWS session, s3 client. 

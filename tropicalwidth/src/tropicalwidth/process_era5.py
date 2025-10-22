@@ -159,8 +159,8 @@ def main():
 
     parser.add_argument( "output", type=str, help='Path to the output file' )
 
-    parser.add_argument( "--dataroot", "-d", dest="dataroot", default=default_dataroot, 
-            help="Root of all data for the tropical width analysis project; " + \ 
+    parser.add_argument( "--dataroot", "-d", dest="dataroot", default=default_dataroot,
+            help="Root of all data for the tropical width analysis project; " + \
                 f'the default is "{default_dataroot}"' )
 
     args = parser.parse_args()

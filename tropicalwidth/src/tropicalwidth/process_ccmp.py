@@ -161,8 +161,9 @@ def main():
     parser.add_argument( "output", type=str, help='The name of the NetCDF output file; the path can optionally ' + \
             'connect to an S3 bucket with the prefix "s3://"' )
 
-    parser.add_argument( "--dataroot", default=default_dataroot, 
-            help=f'The root path for the data; the default is "{default_dataroot}".' )
+    parser.add_argument( "--dataroot", "-d", dest="dataroot", default=default_dataroot,
+            help="Root of all data for the tropical width analysis project; " + \
+                f'the default is "{default_dataroot}"' )
 
     parser.add_argument( "--clobber", "-c", dest='clobber', default=False, action="store_true", 
             help='Clobber previously existing output file; do not clobber by default' )
