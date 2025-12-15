@@ -2360,19 +2360,19 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
     season = "All"
 
     fig = plt.figure( figsize=(4,4) )
-    ax = fig.add_axes( [ 0.10, 0.10, 0.88, 0.88 ] )
+    ax = fig.add_axes( [ 0.14, 0.14, 0.84, 0.84 ] )
 
-    ticks, ml = np.arange( -4, 4.1, 2 ), MultipleLocator( 1 )
+    ticks, ml = np.arange( -2, 2.1, 1 ), MultipleLocator( 0.5 )
 
     ax.set_xlim( ticks.min(), ticks.max() )
     ax.set_xticks( ticks )
     ax.xaxis.set_minor_locator( ml )
-    ax.set_xlabel( r'Trend [$^\circ$ dec$^{-1}$' )
+    ax.set_xlabel( r'Trend [$^\circ$ dec$^{-1}$]' )
 
     ax.set_ylim( ticks.min(), ticks.max() )
     ax.set_yticks( ticks )
     ax.yaxis.set_minor_locator( ml )
-    ax.set_ylabel( r'AMO [$^\circ$ dec$^{-1}$' )
+    ax.set_ylabel( r'AMO [$^\circ$ AMO$^{-1}$]' )
 
     #  CCMP uncertainty covariance. 
 
@@ -2382,7 +2382,8 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
             rec = a
             break 
     itrend, iamo = rec['labels'].index("trend"), rec['labels'].index("amo")
-    cov = rec['covariance'][itrend,iamo]
+    c = rec['uncertainty_covariance']
+    cov = np.array( [ [ c[itrend,itrend], c[itrend,iamo] ], [ c[iamo,itrend], c[iamo,iamo] ] ] )
     trend, amo = rec['trend'], rec['amo']
 
     #  Eigendecompose. 
@@ -2398,7 +2399,7 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
 
     #  Plot ellipse. 
 
-    ax.plot( x / 10.0, y / amo_trend / 10.0, lw=2.0, color="k" )
+    ax.plot( x * 10.0, y / amo_trend * 10.0, lw=2.0, color="k" )
 
     #  CMIP6 uncertainty covariances. 
 
@@ -2415,7 +2416,8 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
                 rec = a
                 break 
         itrend, iamo = rec['labels'].index("trend"), rec['labels'].index("amo")
-        cov = rec['covariance'][itrend,iamo]
+        c = rec['uncertainty_covariance']
+        cov = np.array( [ [ c[itrend,itrend], c[itrend,iamo] ], [ c[iamo,itrend], c[iamo,iamo] ] ] )
         trend, amo = rec['trend'], rec['amo']
 
         #  Eigendecompose. 
@@ -2431,7 +2433,7 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
 
         #  Plot ellipse. 
 
-        ax.plot( x / 10.0, y / amo_trend / 10.0, lw=1.0, color=colors[imodel] )
+        ax.plot( x * 10.0, y, lw=1.0, color=colors[imodel] )
 
     #  Write to output. 
 
