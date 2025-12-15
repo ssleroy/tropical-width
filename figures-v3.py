@@ -876,6 +876,7 @@ def compute_cmip6_linear_regression( outputfile='cmip6_trends.dat', jsonsavefile
                     'lats': lats[ii],                 #  ...with annual cycle included...
                     'times': x, 
                     'time_reference': ret['timereference'], 
+                    'labels': ret['labels'], 
                     'annualcycle': annualcycle, 
                     'intercept_index': iintercept, 
                     'trend_index': itrend, 
@@ -2341,6 +2342,8 @@ def plot_era5_index_regressions( indexregions, outputfile="era5_index_regression
 def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_trend_covariance.pdf" ): 
     """Plot error covariance ellipses for trend-AMO detections based on CCMP and CMIP6 models."""
 
+    time0 = time()
+
     #  First, compute the trend in AMO rindices over the requisite time interval. 
     #  The units of amo_trend will be AMO index / yr. 
 
@@ -2352,6 +2355,9 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
     amo_trend = ( y * dx ).sum() / ( dx * dx ).sum()
 
     #  Set up figure and axes. 
+
+    region = "N Atlantic"
+    season = "All"
 
     fig = plt.figure( figsize=(4,4) )
     ax = fig.add_axes( [ 0.10, 0.10, 0.88, 0.88 ] )
@@ -2372,7 +2378,7 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
 
     rec = None
     for a in ccmp_analyses: 
-        if a['method']=="All" and a['season']=="All" and a['region']=="N Atlantic": 
+        if a['method']=="All" and a['season']==season and a['region']==region: 
             rec = a
             break 
     itrend, iamo = rec['labels'].index("trend"), rec['labels'].index("amo")
@@ -2394,7 +2400,47 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
 
     ax.plot( x / 10.0, y / amo_trend / 10.0, lw=2.0, color="k" )
 
-    #  Continue here. 
+    #  CMIP6 uncertainty covariances. 
+
+    models = sorted( list( set( [ a['model'] for a in cmip6_analyses ] ) ) )
+    nmodels = len( models )
+    cmap = plt.get_cmap( 'gist_ncar' )
+    colors = [ cmap( 0.1 + 0.9*(imodel+0.5)/nmodels ) for imodel in range(nmodels) ]
+
+    for imodel, model in enumerate( models ): 
+
+        rec = None
+        for a in cmip6_analyses: 
+            if a['model']==model and a['season']==season and a['region']==region: 
+                rec = a
+                break 
+        itrend, iamo = rec['labels'].index("trend"), rec['labels'].index("amo")
+        cov = rec['covariance'][itrend,iamo]
+        trend, amo = rec['trend'], rec['amo']
+
+        #  Eigendecompose. 
+
+        vals, vecs = np.linalg.eig( cov )
+        theta = np.arange( 0.0, 1.00001, 0.01 ) * 2 * np.pi
+
+        x = trend
+        y = amo
+
+        x += np.sqrt(vals[0]) * vecs[0,0] * np.cos(theta) + np.sqrt(vals[1]) * vecs[0,1] * np.cos(theta)
+        y += np.sqrt(vals[1]) * vecs[1,0] * np.cos(theta) + np.sqrt(vals[1]) * vecs[1,1] * np.cos(theta)
+
+        #  Plot ellipse. 
+
+        ax.plot( x / 10.0, y / amo_trend / 10.0, lw=1.0, color=colors[imodel] )
+
+    #  Write to output. 
+
+    print( f'  Generating {outputfile}' )
+    fig.savefig( outputfile )
+
+    dtime = int( time() - time0 )
+    print( f'  Elapsed time = {dtime} secs\n' )
+
 
 def execute_all(): 
 
@@ -2452,8 +2498,9 @@ def execute_select():
     ccmp_analyses = compute_ccmp_linear_regressions( outputfile="ccmp_trends.dat", jsonsavefile='ccmp_analyses.json', pdo=pdo, amo=amo ) 
     cmip6_analyses = compute_cmip6_linear_regression( outputfile='cmip6_trends.dat', jsonsavefile="cmip6_analyses.json", pdo=pdo, amo=amo ) 
 
-    plot_table_of_trends( ccmp_analyses, cmip6_analyses, outputfile="table_of_trends.pdf" ) 
-    plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputfile="table_of_amo.pdf" ) 
+    # plot_table_of_trends( ccmp_analyses, cmip6_analyses, outputfile="table_of_trends.pdf" ) 
+    # plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputfile="table_of_amo.pdf" ) 
+    amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_trend_covariance.pdf" ) 
 
     dtime = int( time() - time0 )
     minutes, seconds = int( dtime / 60 ), ( dtime % 60 )
