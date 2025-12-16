@@ -68,10 +68,10 @@ s3 = boto3.client( "s3" )
 
 axeslinewidth = 0.5
 plt.rcParams.update( {
-  'font.family': "Helvetica", 
-  'font.size': 9, 
-  'font.weight': "normal", 
   'text.usetex': True, 
+  'font.family': "serif", 
+  'font.serif': [ "Computer Modern Roman" ], 
+  'font.weight': "normal", 
   'xtick.major.width': axeslinewidth, 
   'xtick.minor.width': axeslinewidth, 
   'ytick.major.width': axeslinewidth, 
@@ -2359,20 +2359,20 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
     region = "N Atlantic"
     season = "All"
 
-    fig = plt.figure( figsize=(4,4) )
-    ax = fig.add_axes( [ 0.14, 0.14, 0.84, 0.84 ] )
+    fig = plt.figure( figsize=(4,3) )
+    ax = fig.add_axes( [ 0.15, 0.15, 0.83, 0.83 ] )
 
     ticks, ml = np.arange( -2, 2.1, 1 ), MultipleLocator( 0.5 )
 
     ax.set_xlim( ticks.min(), ticks.max() )
     ax.set_xticks( ticks )
     ax.xaxis.set_minor_locator( ml )
-    ax.set_xlabel( r'Trend [$^\circ$ dec$^{-1}$]' )
+    ax.set_xlabel( r'Linear Trend [$^\circ$ dec$^{-1}$]' )
 
-    ax.set_ylim( ticks.min(), ticks.max() )
-    ax.set_yticks( ticks )
-    ax.yaxis.set_minor_locator( ml )
-    ax.set_ylabel( r'AMO [$^\circ$ AMO$^{-1}$]' )
+    ax.set_ylim( -0.5, 0.5 )
+    ax.set_yticks( np.arange( -0.4, 0.401, 0.2 ) )
+    ax.yaxis.set_minor_locator( MultipleLocator(0.1) )
+    ax.set_ylabel( r'AMO Trend [$^\circ$ dec$^{-1}$]' )
 
     #  CCMP uncertainty covariance. 
 
@@ -2394,12 +2394,12 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
     x = trend
     y = amo
 
-    x += np.sqrt(vals[0]) * vecs[0,0] * np.cos(theta) + np.sqrt(vals[1]) * vecs[0,1] * np.cos(theta)
-    y += np.sqrt(vals[1]) * vecs[1,0] * np.cos(theta) + np.sqrt(vals[1]) * vecs[1,1] * np.cos(theta)
+    x += np.sqrt(vals[0]) * vecs[0,0] * np.cos(theta) + np.sqrt(vals[1]) * vecs[0,1] * np.sin(theta)
+    y += np.sqrt(vals[0]) * vecs[1,0] * np.cos(theta) + np.sqrt(vals[1]) * vecs[1,1] * np.sin(theta)
 
     #  Plot ellipse. 
 
-    ax.plot( x * 10.0, y / amo_trend * 10.0, lw=2.0, color="k" )
+    ax.plot( x * 10, y * amo_trend * 10, lw=2.0, color="k" )
 
     #  CMIP6 uncertainty covariances. 
 
@@ -2428,12 +2428,12 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
         x = trend
         y = amo
 
-        x += np.sqrt(vals[0]) * vecs[0,0] * np.cos(theta) + np.sqrt(vals[1]) * vecs[0,1] * np.cos(theta)
-        y += np.sqrt(vals[1]) * vecs[1,0] * np.cos(theta) + np.sqrt(vals[1]) * vecs[1,1] * np.cos(theta)
+        x += np.sqrt(vals[0]) * vecs[0,0] * np.cos(theta) + np.sqrt(vals[1]) * vecs[0,1] * np.sin(theta)
+        y += np.sqrt(vals[0]) * vecs[1,0] * np.cos(theta) + np.sqrt(vals[1]) * vecs[1,1] * np.sin(theta)
 
         #  Plot ellipse. 
 
-        ax.plot( x * 10.0, y, lw=1.0, color=colors[imodel] )
+        ax.plot( x * 10, y * amo_trend * 10, lw=1.0, color=colors[imodel] )
 
     #  Write to output. 
 
