@@ -189,9 +189,12 @@ def regress( times, vals, pdo=None, amo=None, noautocorrelation=False ):
     Ainv = np.linalg.inv( fp.T @ fp ) 
     coeffs = Ainv @ fp.T @ vals[igood]
 
-    #  Calculate residuals and standard deviation. 
+    #  Calculate residuals, fraction of variance explained, and standard deviation. 
 
-    residuals = vals[igood] - fp @ coeffs
+    e = fp @ coeffs
+    residuals = vals[igood] - e
+    fve = ( ( e - e.mean() )**2 ).sum() / ( ( vals[igood] - vals[igood].mean() )**2 ).sum()
+
     var = ( residuals**2 ).sum() / ( residuals.size - nmonths - fp.shape[1] )
     if noautocorrelation: 
         phi = 0.0
@@ -206,7 +209,7 @@ def regress( times, vals, pdo=None, amo=None, noautocorrelation=False ):
 
     #  Return dictionary. 
 
-    ret = { 'labels': labels, 'coefficients': coeffs, 'uncertainty': cov, 'timereference': timereference }
+    ret = { 'labels': labels, 'coefficients': coeffs, 'uncertainty': cov, 'timereference': timereference, 'explainedvariance': fve }
 
     return ret
 
@@ -453,7 +456,8 @@ def compute_ccmp_linear_regressions( outputfile="ccmp_trends.dat", jsonsavefile=
                     'intercept': ret['coefficients'][iintercept], 
                     'intercept_uncertainty': np.sqrt( ret['uncertainty'][iintercept,iintercept] ), 
                     'trend': ret['coefficients'][itrend],
-                    'trend_uncertainty': np.sqrt( ret['uncertainty'][itrend,itrend] )
+                    'trend_uncertainty': np.sqrt( ret['uncertainty'][itrend,itrend] ), 
+                    'fraction_explained_variance': ret['explainedvariance']
                 }
 
                 if pdo: 
@@ -484,6 +488,7 @@ def compute_ccmp_linear_regressions( outputfile="ccmp_trends.dat", jsonsavefile=
                 'method': a['method'],
                 'region': a['region'],
                 'season': a['season'],
+                'fraction_explained_variance': float( a['fraction_explained_variance'] ), 
                 'intercept': float( a['intercept'] ), 
                 'intercept_uncertainty': float( a['intercept_uncertainty'] ), 
                 'trend': float( a['trend'] ),
@@ -573,7 +578,7 @@ def compute_ccmp_linear_regressions( outputfile="ccmp_trends.dat", jsonsavefile=
         #  To an ASCII output file. 
 
         file = "ccmp_amo.dat"
-        print( f'  Saving CCMP PDO estimates to {file}.' )
+        print( f'  Saving CCMP AMO estimates to {file}.' )
         with open( file, 'w' ) as f:
             f.write( "\n".join( lines ) + "\n" )
 
@@ -673,7 +678,8 @@ def compute_era5_linear_regression( outputfile='era5_trends.dat', pdo=None, amo=
                 'intercept': ret['coefficients'][iintercept], 
                 'intercept_uncertainty': np.sqrt( ret['uncertainty'][iintercept,iintercept] ), 
                 'trend': ret['coefficients'][itrend],
-                'trend_uncertainty': np.sqrt( ret['uncertainty'][itrend,itrend] )
+                'trend_uncertainty': np.sqrt( ret['uncertainty'][itrend,itrend] ), 
+                'fraction_explained_variance': ret['explainedvariance'], 
                 }
 
             if pdo: 
@@ -885,7 +891,8 @@ def compute_cmip6_linear_regression( outputfile='cmip6_trends.dat', jsonsavefile
                     'intercept': ret['coefficients'][iintercept], 
                     'intercept_uncertainty': np.sqrt( ret['uncertainty'][iintercept,iintercept] ), 
                     'trend': ret['coefficients'][itrend],
-                    'trend_uncertainty': np.sqrt( ret['uncertainty'][itrend,itrend] ) 
+                    'trend_uncertainty': np.sqrt( ret['uncertainty'][itrend,itrend] ), 
+                    'fraction_explained_variance': ret['explainedvariance'], 
                 } 
 
                 if pdo: 
@@ -914,6 +921,7 @@ def compute_cmip6_linear_regression( outputfile='cmip6_trends.dat', jsonsavefile
                 'model': a['model'],
                 'region': a['region'],
                 'season': a['season'],
+                'fraction_explained_variance': float( a['fraction_explained_variance'] ), 
                 'intercept': float( a['intercept'] ), 
                 'intercept_uncertainty': float( a['intercept_uncertainty'] ), 
                 'trend': float( a['trend'] ),
@@ -2444,6 +2452,64 @@ def amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, outputfile="amo_tr
     print( f'  Elapsed time = {dtime} secs\n' )
 
 
+def compare_explained_variance( outputfile, analyses, labels, latex=False ): 
+    """Compare fraction of explained variance from a variety of linear multipattern regression 
+    analyses. The labels are short descriptions of each analysis, and the dimension of each 
+    argument must be the same."""
+
+    #  Get lists of regions and seasons. 
+
+    regions = [ "NH", "N Pacific", "N Atlantic", "SH", "S Pacific", "S Atlantic" ]
+    seasons = [ "All", "DJF", "MAM", "JJA", "SON" ]
+    method = "All"
+
+    #  Compose explained variance table. 
+
+    nseasons = len( seasons )
+    if latex: 
+        lines = [ r'\begin{tabular}{l' + " c"*nseasons + r'}' ]
+        lines += [ r'\hline', r'\hline' ]
+        lines.append( r'Region & \multicolumn{'+str(nseasons)+r'}{c}{' + "Explained variance ({:})".format( " / ".join( labels ) ) + r'} \\' )
+        lines.append( r' & ' + r' & '.join( seasons ) + r' \\' ) 
+        lines.append( r'\hline' )
+    else: 
+        lines = [ '{:12s}  {:^80s}'.format( "Region", "Explained variance ({:})".format( "/".join( labels ) ) ) ]
+        lines.append( " "*15 + "  ".join( [ f'{season:^14s}' for season in seasons ] ) )
+
+    for hemisphere in [ "N", "S" ]:
+        for region in regions:
+            if region[0] != hemisphere:
+                continue
+
+            if latex: 
+                line = f'{region} '
+            else: 
+                line = f'{region:12s}'
+
+            for season in seasons:
+                vals = []
+                for analysis in analyses: 
+                    rec = [ a for a in analysis if a['region']==region and
+                            a['season']==season and a['method']=="All" ][0]
+                    vals.append( rec['fraction_explained_variance'] )
+                if latex: 
+                    line += r' & ' + " / ".join( [ f'{v:5.3f}' for v in vals ] )
+                else: 
+                    line += '   ' + " / ".join( [ f'{v:5.3f}' for v in vals ] )
+            if latex: 
+                line += r' \\'
+
+            lines.append( line )
+
+    if latex: 
+        lines += [ r'\hline',  r'\end{tabular}' ]
+
+    #  To an ASCII output file. 
+
+    print( f'  Saving CCMP trend data to {outputfile}.' )
+    with open( outputfile, 'w' ) as f:
+        f.write( "\n".join( lines ) + "\n" )
+
 def execute_all(): 
 
     time0 = time()
@@ -2497,8 +2563,12 @@ def execute_select():
     pdo = None
     amo = get_amo_timeseries() 
 
+    ccmp_analyses_linear = compute_ccmp_linear_regressions( outputfile="tmp.dat", jsonsavefile='ccmp_analyses.json' ) 
     ccmp_analyses = compute_ccmp_linear_regressions( outputfile="ccmp_trends.dat", jsonsavefile='ccmp_analyses.json', pdo=pdo, amo=amo ) 
     cmip6_analyses = compute_cmip6_linear_regression( outputfile='cmip6_trends.dat', jsonsavefile="cmip6_analyses.json", pdo=pdo, amo=amo ) 
+    compare_explained_variance( outputfile="explained_variance.tex", 
+                               analyses=[ccmp_analyses_linear,ccmp_analyses], 
+                               labels=["linear only","with AMO"], latex=True )
 
     # plot_table_of_trends( ccmp_analyses, cmip6_analyses, outputfile="table_of_trends.pdf" ) 
     # plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputfile="table_of_amo.pdf" ) 
