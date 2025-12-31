@@ -2249,7 +2249,15 @@ def plot_ccmp_era5_timeseries_deseasonalized( ccmp_analyses, era5_analyses, outp
         yticks = np.arange(-10,10.1,5).astype('i')
         ax.set_ylim( -10, 10 )
         ax.set_yticks( yticks )
-        ax.set_yticklabels( [ r'{:3d}$^\circ$'.format(ytick) for ytick in yticks ] )
+        yticklabels = []
+        for ytick in yticks: 
+            if ytick > 0.0: 
+                yticklabels.append( r'$+{:d}^\circ$'.format( int(ytick) ) )
+            elif ytick < 0.0: 
+                yticklabels.append( r'$-{:d}^\circ$'.format( abs(int(ytick)) ) )
+            else: 
+                yticklabels.append( r'$0^\circ$' )
+        ax.set_yticklabels( yticklabels )
         ax.yaxis.set_minor_locator( MultipleLocator(1) )
         ax.set_ylabel( '' )
 
@@ -3182,12 +3190,12 @@ def execute_select():
 
     time0 = time()
 
-    rindices = True
+    rindices = False
 
     pdo = get_pdo_timeseries()
     amo = get_amo_timeseries( source="psl" ) 
     enso = get_enso_timeseries() 
-    outputdir = "with_pdo_amo_enso_rindices"
+    outputdir = "with_pdo_amo_enso"
 
     # pdo, amo, enso = None, None, None 
     # outputdir = "clean"
