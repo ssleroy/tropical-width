@@ -807,8 +807,8 @@ def compute_ccmp_linear_regressions( outputdir, pdo=None, amo=None, enso=None, r
         if latex: 
             lines = [ r'\begin{tabular}{l' + " c"*nseasons + r'}' ]
             lines += [ r'\hline', r'\hline' ]
-            lines.append( r' & \multicolumn{'+str(nseasons)+r'}{c}{' + r'Seasonal trends (uncertainty) [${}^{\circ}$ lat decade$^{-1}$] \\' )
-            lines.append( r'Region & ' + r' & '.join( seasonnames ) + r' \\' ) 
+            lines.append( r' & \multicolumn{'+str(nseasons)+r'}{c}{' + r'Seasonal trends (uncertainty) [${}^{\circ}$ lat decade$^{-1}$]} \cr' )
+            lines.append( r'Region & ' + r' & '.join( seasonnames ) + r' \cr' ) 
             lines.append( r'\hline' )
         else: 
             lines = [ " "*14 + '{:^80s}'.format( "Seasonal trends (uncertainty) [deg/decade]" ) ]
@@ -826,14 +826,14 @@ def compute_ccmp_linear_regressions( outputdir, pdo=None, amo=None, enso=None, r
                         rec['season']==season['name'] and rec['method']=="All" ][0]
                     if latex: 
                         if rec["trend"] >= 0.0 : 
-                            line += f' & $+{rec["trend"]*10:5.3f}$ ({rec["trend_uncertainty"]*10:5.3f})'
+                            line += f' & $+{rec["trend"]*10:5.3f}\\ ({rec["trend_uncertainty"]*10:5.3f})$'
                         else: 
-                            line += f' & ${rec["trend"]*10:6.3f}$ ({rec["trend_uncertainty"]*10:5.3f})'
+                            line += f' & ${rec["trend"]*10:6.3f}\\ ({rec["trend_uncertainty"]*10:5.3f})$'
                     else: 
                         line += f' {rec["trend"]*10:6.3f} ({rec["trend_uncertainty"]*10:5.3f})'
 
                 if latex: 
-                    line += r' \\'
+                    line += r' \cr'
 
                 lines.append( line )
 
@@ -2278,7 +2278,7 @@ def plot_ccmp_era5_timeseries_deseasonalized( ccmp_analyses, era5_analyses, outp
 
 ### Table of trends
 
-def plot_table_of_trends( ccmp_analyses, cmip6_analyses, outputfile="table_of_trends.pdf" ): 
+def plot_table_of_trends( ccmp_analyses, cmip6_analyses, outputdir ): 
     """Display a graphical version of the table of trend analyses, CCMP and CMIP6, 
     northern and southern hemispheres, by season and region."""
 
@@ -2370,6 +2370,7 @@ def plot_table_of_trends( ccmp_analyses, cmip6_analyses, outputfile="table_of_tr
             if ihemisphere==1 and isuffix==1: 
                 ax.legend( ncol=5, bbox_to_anchor=(0.5,-0.35), loc="upper center", fontsize=6, frameon=False )
 
+    outputfile = os.path.join( outputdir, "table_of_trends.pdf" )
     print( f'  Saving to {outputfile}' )
     fig.savefig( outputfile )
 
@@ -2379,7 +2380,7 @@ def plot_table_of_trends( ccmp_analyses, cmip6_analyses, outputfile="table_of_tr
 
 ### Table of PDO
  
-def plot_table_of_pdo( ccmp_analyses, cmip6_analyses, outputfile="table_of_pdo.pdf" ): 
+def plot_table_of_pdo( ccmp_analyses, cmip6_analyses, outputdir ): 
     """Display a graphical version of the table of PDO analyses, CCMP and CMIP6, northern 
     and southern hemispheres, by season and region."""
 
@@ -2468,6 +2469,7 @@ def plot_table_of_pdo( ccmp_analyses, cmip6_analyses, outputfile="table_of_pdo.p
             if ihemisphere==1 and isuffix==1: 
                 ax.legend( ncol=5, bbox_to_anchor=(0.5,-0.35), loc="upper center", fontsize=6, frameon=False )
 
+    outputfile = os.path.join( outputdir, "table_of_pdo.pdf" )
     print( f'  Saving to {outputfile}' )
     fig.savefig( outputfile )
 
@@ -2477,7 +2479,7 @@ def plot_table_of_pdo( ccmp_analyses, cmip6_analyses, outputfile="table_of_pdo.p
 
 ### Table of AMO
  
-def plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputfile="table_of_amo.pdf" ): 
+def plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputdir ): 
     """Display a graphical version of the table of AMO analyses, CCMP and CMIP6, northern 
     and southern hemispheres, by season and region."""
 
@@ -2491,9 +2493,9 @@ def plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputfile="table_of_amo.p
     xlim = [ -0.5, len(seasons)-0.5 ]
     xticks = np.arange( len(seasons), dtype='i' )
 
-    ylim = [ -1.8, 1.8 ]
-    yticks = np.arange( -1.0, 1.001, 1, dtype='f' )
-    yminor = 0.2
+    ylim = [ -5.0, 5.01 ]
+    yticks = np.arange( -4.0, 4.001, 2, dtype='f' )
+    yminor = 0.5
 
     superframe = np.array( [ 0.065, 0.35, 0.925, 0.63 ] )
     subframe = np.array( [ 0.01, 0.01, 0.98, 0.98 ] )
@@ -2566,6 +2568,7 @@ def plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputfile="table_of_amo.p
             if ihemisphere==1 and isuffix==1: 
                 ax.legend( ncol=5, bbox_to_anchor=(0.5,-0.35), loc="upper center", fontsize=6, frameon=False )
 
+    outputfile = os.path.join( outputdir, "table_of_amo.pdf" )
     print( f'  Saving to {outputfile}' )
     fig.savefig( outputfile )
 
@@ -2575,7 +2578,7 @@ def plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputfile="table_of_amo.p
 
 ### Table of ENSO
  
-def plot_table_of_enso( ccmp_analyses, cmip6_analyses, outputfile="table_of_enso.pdf" ): 
+def plot_table_of_enso( ccmp_analyses, cmip6_analyses, outputdir ): 
     """Display a graphical version of the table of ENSO analyses, CCMP and CMIP6, northern 
     and southern hemispheres, by season and region."""
 
@@ -2664,6 +2667,7 @@ def plot_table_of_enso( ccmp_analyses, cmip6_analyses, outputfile="table_of_enso
             if ihemisphere==1 and isuffix==1: 
                 ax.legend( ncol=5, bbox_to_anchor=(0.5,-0.35), loc="upper center", fontsize=6, frameon=False )
 
+    outputfile = os.path.join( outputdir, "table_of_enso.pdf" )
     print( f'  Saving to {outputfile}' )
     fig.savefig( outputfile )
 
@@ -3083,8 +3087,8 @@ def compare_explained_variance( outputfile, analyses, labels ):
     if latex: 
         lines = [ r'\begin{tabular}{l' + " c"*nseasons + r'}' ]
         lines += [ r'\hline', r'\hline' ]
-        lines.append( r' & \multicolumn{'+str(nseasons)+r'}{c}{' + "Explained variance ({:})".format( " / ".join( labels ) ) + r'} \\' )
-        lines.append( r'Region & ' + r' & '.join( seasons ) + r' \\' ) 
+        lines.append( r' & \multicolumn{'+str(nseasons)+r'}{c}{' + "Explained variance ({:})".format( " / ".join( labels ) ) + r'} \cr' )
+        lines.append( r'Region & ' + r' & '.join( seasons ) + r' \cr' ) 
         lines.append( r'\hline' )
     else: 
         lines = [ " "*14 + '{:^80s}'.format( "Explained variance ({:})".format( "/".join( labels ) ) ) ]
@@ -3111,7 +3115,7 @@ def compare_explained_variance( outputfile, analyses, labels ):
                 else: 
                     line += '   ' + " / ".join( [ f'{v:5.3f}' for v in vals ] )
             if latex: 
-                line += r' \\'
+                line += r' \cr'
 
             lines.append( line )
 
@@ -3169,11 +3173,11 @@ def execute_all():
     plot_wind_climatology( outputfile=os.path.join(outputdir,"ccmp_zonal_mean_zonal_wind.pdf") ) 
     plot_ccmp_era5_timeseries( ccmp_analyses, era5_analyses, outputfile=os.path.join(outputdir,"ccmp_era5_timeseries.pdf") ) 
     plot_ccmp_era5_timeseries_deseasonalized( ccmp_analyses, era5_analyses, outputdir, pdo=pdo, amo=amo, enso=enso ) 
-    plot_table_of_trends( ccmp_analyses, cmip6_analyses, outputfile=os.path.join(outputdir,"table_of_trends.pdf") ) 
+    plot_table_of_trends( ccmp_analyses, cmip6_analyses, outputdir ) 
     if pdo is not None: 
-        plot_table_of_pdo( ccmp_analyses, cmip6_analyses, outputfile=os.path.join(outputdir,"table_of_pdo.pdf") ) 
+        plot_table_of_pdo( ccmp_analyses, cmip6_analyses, outputdir ) 
     if amo is not None: 
-        plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputfile=os.path.join(outputdir,"table_of_amo.pdf") ) 
+        plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputdir ) 
     plot_ccmpcounts( outputfile="ccmpcounts.pdf" ) 
     plot_sounding_density_timeseries( outputfile="ccmp_midlat_density_timeseries.pdf" ) 
     plot_spatial_variability( pps, indexregions, outputfile="spatial_variability.pdf" ) 
@@ -3190,15 +3194,17 @@ def execute_select():
 
     time0 = time()
 
-    rindices = False
+    if True: 
+        pdo = get_pdo_timeseries()
+        amo = get_amo_timeseries( source="psl" ) 
+        enso = get_enso_timeseries() 
+        rindices = False
+        outputdir = "with_pdo_amo_enso"
 
-    pdo = get_pdo_timeseries()
-    amo = get_amo_timeseries( source="psl" ) 
-    enso = get_enso_timeseries() 
-    outputdir = "with_pdo_amo_enso"
-
-    # pdo, amo, enso = None, None, None 
-    # outputdir = "clean"
+    else: 
+        pdo, amo, enso = None, None, None 
+        rindices = False
+        outputdir = "clean"
 
     os.makedirs( outputdir, exist_ok=True )
 
@@ -3207,21 +3213,25 @@ def execute_select():
     cmip6_analyses = compute_cmip6_linear_regression( outputdir, pdo=pdo, amo=amo, enso=enso, rindices=rindices ) 
     era5_analyses = compute_era5_linear_regression( outputdir, pdo=pdo, amo=amo, enso=enso, rindices=rindices ) 
 
-    plot_table_of_trends( ccmp_analyses, cmip6_analyses, outputfile=os.path.join(outputdir,"table_of_trends.pdf") ) 
+    plot_table_of_trends( ccmp_analyses, cmip6_analyses, outputdir ) 
     plot_ccmp_era5_timeseries_deseasonalized( ccmp_analyses, era5_analyses, outputdir, pdo=pdo, amo=amo, enso=enso ) 
+    # plot_ccmpcounts( outputfile="ccmpcounts.pdf" ) 
+    # plot_sounding_density_timeseries( outputfile="ccmp_midlat_density_timeseries.pdf" )
 
     if pdo: 
-        plot_table_of_pdo( ccmp_analyses, cmip6_analyses, outputfile=os.path.join(outputdir,"table_of_amo.pdf") ) 
+        plot_table_of_pdo( ccmp_analyses, cmip6_analyses, outputdir ) 
 
     if amo: 
         plot_amo_timeseries( amo, outputfile=os.path.join(outputdir,"amo_timeseries.pdf") )
         compare_explained_variance( outputfile=os.path.join(outputdir,"explained_variance.dat"), analyses=[ccmp_analyses_linear,ccmp_analyses], labels=["linear only","with AMO"] )
         compare_explained_variance( outputfile=os.path.join(outputdir,"explained_variance.tex"), analyses=[ccmp_analyses_linear,ccmp_analyses], labels=["linear only","with AMO"] )
-        plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputfile=os.path.join(outputdir,"table_of_amo.pdf") ) 
+        plot_table_of_amo( ccmp_analyses, cmip6_analyses, outputdir ) 
         amo_trend_covariance( ccmp_analyses, cmip6_analyses, amo, season="All", outputfile=os.path.join(outputdir,"amo_trend_covariance.pdf") ) 
 
     if enso: 
-        plot_table_of_enso( ccmp_analyses, cmip6_analyses, outputfile=os.path.join(outputdir,"table_of_enso.pdf") ) 
+        plot_table_of_enso( ccmp_analyses, cmip6_analyses, outputdir ) 
+
+    trend, uncertainty = compute_total_width_trend( ccmp_analyses, pdo=pdo, amo=amo, enso=enso, rindices=rindices ) 
 
     dtime = int( time() - time0 )
     minutes, seconds = int( dtime / 60 ), ( dtime % 60 )
