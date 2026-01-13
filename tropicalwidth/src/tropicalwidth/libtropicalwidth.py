@@ -540,9 +540,11 @@ class TimePtr():
 
         if model.oscar: 
             if varname == 'u': 
-                self.data += fileptr.oscar_u
+                ii = np.logical_not( fileptr.oscar_u.mask )
+                self.data[ii] += fileptr.oscar_u[ii]
             elif varname == 'v': 
-                self.data += fileptr.oscar_v
+                ii = np.logical_not( fileptr.oscar_v.mask )
+                self.datai[ii] += fileptr.oscar_v[ii]
 
         self.lons = fileptr.lons
         self.lats = fileptr.lats
